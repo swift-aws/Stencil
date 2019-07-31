@@ -87,12 +87,14 @@ struct Lexer {
         guard let end = Lexer.tokenCharMap[char] else { continue }
         let result = scanner.scanForTokenEnd(end)
         tokens.append(createToken(string: result, at: scanner.range))
+        if( (char == "%" || char == "#") && scanner.peek() == "\n") {
+            scanner.skip(numChars: 1)
+        }
       } else {
         tokens.append(createToken(string: scanner.content, at: scanner.range))
         scanner.content = ""
       }
     }
-
     return tokens
   }
 
@@ -191,6 +193,17 @@ class Scanner {
     }
 
     return nil
+  }
+
+  /// peek to see what the next character is
+  func peek() -> Unicode.Scalar? {
+    return content.unicodeScalars.first
+  }
+    
+  /// skip forward a number of characters
+  func skip(numChars : Int) {
+    content = String(content.dropFirst(numChars))
+    range = range.upperBound..<originalContent.index(range.upperBound, offsetBy: numChars)
   }
 }
 
