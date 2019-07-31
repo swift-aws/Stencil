@@ -45,6 +45,7 @@ struct Lexer {
       let trimmed = String(string.dropFirst(2).dropLast(2))
         .components(separatedBy: "\n")
         .filter { !$0.isEmpty }
+        .map { $0.trim(character: "+") }
         .map { $0.trim(character: " ") }
         .joined(separator: " ")
       return trimmed
@@ -85,10 +86,10 @@ struct Lexer {
         }
 
         guard let end = Lexer.tokenCharMap[char] else { continue }
-        let result = scanner.scanForTokenEnd(end)
+        let (result, collapse) = scanner.scanForTokenEnd(end)
         tokens.append(createToken(string: result, at: scanner.range))
-        if( (char == "%" || char == "#") && scanner.peek() == "\n") {
-            scanner.skip(numChars: 1)
+        if( collapse && (char == "%" || char == "#") && scanner.peek() == "\n") {
+          scanner.skip(numChars: 1)
         }
       } else {
         tokens.append(createToken(string: scanner.content, at: scanner.range))
@@ -144,22 +145,26 @@ class Scanner {
   ///
   /// - Parameter tokenChar: The token end character to search for.
   /// - Returns: The content of a token, or "" if no token end was found.
-  func scanForTokenEnd(_ tokenChar: Unicode.Scalar) -> String {
+  func scanForTokenEnd(_ tokenChar: Unicode.Scalar) -> (String, Bool) {
     var foundChar = false
+    var previousChar : Unicode.Scalar = " "
+    var previousChar2 : Unicode.Scalar = " "
 
     for (index, char) in content.unicodeScalars.enumerated() {
       if foundChar && char == Scanner.tokenEndDelimiter {
         let result = String(content.prefix(index + 1))
         content = String(content.dropFirst(index + 1))
         range = range.upperBound..<originalContent.index(range.upperBound, offsetBy: index + 1)
-        return result
+        return (result, previousChar2 != "+")
       } else {
         foundChar = (char == tokenChar)
       }
+      previousChar2 = previousChar
+      previousChar = char
     }
 
     content = ""
-    return ""
+    return ("", true)
   }
 
   /// Scans for the start of a token, with a list of potential starting
